@@ -2,13 +2,23 @@ library(tidyverse)
 library(ggplot2)
 library(tidytext)
 library(wordcloud)
+library(caret)
+library(glmnet)
 
+
+
+# Data import and cleaning ------------------------------------------------
 
 # Read US App Store reviews about Komoot
 reviews <- read_json("reviews.json")
 
 # Translate to Tibble data frame
 reviews <-  bind_rows(reviews)
+
+
+
+# Exploratory data analysis -----------------------------------------------
+
 
 # Average ratings of Komoot App in the US Store based on these 157 reviews
 mean(reviews$score)
@@ -83,6 +93,10 @@ word_data %>%
   with(wordcloud(word, n, max.words = 100))
 
 
+
+# Title Analysis ----------------------------------------------------------
+
+
 # Title Analysis
 title_words <- reviews %>% 
   select(userName, title) %>% 
@@ -104,7 +118,45 @@ title_words %>%
 
 
 
+# Modelling, estimating score by words ------------------------------------
 
+# Create train and test data sets
+indexes <- createDataPartition(reviews$score, times = 1, p=0.7, list = FALSE)
+#indexes <- createDataPartition(tweet_data$author, times = 1,p = 0.7, list = FALSE)
+
+
+set.seed(32984)
+
+indexes <- sample.int(n = nrow(reviews), size = floor(.8*nrow(reviews)), replace = F)
+
+train_data <- reviews[indexes, ]
+test_data <- reviews[-indexes, ]
+
+
+  
+train_m <- train_data %>% 
+  select(userName, text) %>% 
+  tidytext::unnest_tokens(word, text, token = "words") %>% 
+  anti_join(get_stopwords()) %>%
+  count(userName, word, sort = TRUE) %>% 
+  cast_sparse(userName, word, n)
+  
+train_m[1:6, 1:6]
+dim(train_m)
+
+
+test_m <- test_data %>% 
+  select(userName, text) %>% 
+  tidytext::unnest_tokens(word, text, token = "words") %>% 
+  anti_join(get_stopwords()) %>%
+  count(userName, word, sort = TRUE) %>% 
+  cast_sparse(userName, word, n)
+
+
+test_m[1:6, 1:6]
+dim(test_m)
+
+  
 
 # TODO: 
 # Modelling, Score prediction based on text
