@@ -4,7 +4,8 @@ library(tidytext)
 library(wordcloud)
 library(caret)
 library(glmnet)
-
+library(h2o)
+library(lime)
 
 
 # Data import and cleaning ------------------------------------------------
@@ -120,45 +121,119 @@ title_words %>%
 
 # Modelling, estimating score by words ------------------------------------
 
-# Create train and test data sets
-indexes <- createDataPartition(reviews$score, times = 1, p=0.7, list = FALSE)
-#indexes <- createDataPartition(tweet_data$author, times = 1,p = 0.7, list = FALSE)
 
-
-set.seed(32984)
-
-indexes <- sample.int(n = nrow(reviews), size = floor(.8*nrow(reviews)), replace = F)
-
-train_data <- reviews[indexes, ]
-test_data <- reviews[-indexes, ]
-
-
-  
-train_m <- train_data %>% 
+sparse_matrix <- reviews %>% 
   select(userName, text) %>% 
   tidytext::unnest_tokens(word, text, token = "words") %>% 
   anti_join(get_stopwords()) %>%
   count(userName, word, sort = TRUE) %>% 
   cast_sparse(userName, word, n)
   
-train_m[1:6, 1:6]
-dim(train_m)
+dim(sparse_matrix)
 
 
-test_m <- test_data %>% 
-  select(userName, text) %>% 
-  tidytext::unnest_tokens(word, text, token = "words") %>% 
-  anti_join(get_stopwords()) %>%
-  count(userName, word, sort = TRUE) %>% 
-  cast_sparse(userName, word, n)
+sparse_matrix <- as.data.frame(as.matrix(sparse_matrix))
 
 
-test_m[1:6, 1:6]
-dim(test_m)
+sparse_matrix$userName <- rownames(sparse_matrix)
+sparse_matrix$userName
 
+train_df <- left_join(x=sparse_matrix, y=reviews[,c("userName", "score")])
+
+
+train_df %>% select(userName, score, fun) %>% as_tibble()
+
+
+
+# H2O MODELLING -----------------------------------------------------------
+
+# Set seed because of reproducability
+n_seed = 12345
+
+# Create target and feature list
+target = "score" # Result
+features = setdiff(colnames(train_df), c("target", "userName"))
+print(features)
+
+
+# Start a local H2O cluster (JVM)
+h2o.init()
+
+# H2O dataframe
+h_data <-  as.h2o(train_df)
+
+
+# Split Train/Test
+h_split = h2o.splitFrame(h_data, ratios = 0.75, seed = n_seed)
+h_train = h_split[[1]] # 75% for modelling
+h_test = h_split[[2]] # 25% for evaluation
+
+
+
+
+# Train a Default H2O GBM model
+model_gbm = h2o.gbm(x = features,
+                    y = target,
+                    training_frame = h_train,
+                    model_id = "my_gbm",
+                    seed = n_seed)
+print(model_gbm)
+
+
+# Evaluate performance on test
+h2o.performance(model_gbm, newdata = h_test)
+h2o.predict(model_gbm, newdata = h_test)
+
+
+
+
+### Test other algos with AutoML
+
+model_automl <- h2o.automl(x = features,
+                           y = target,
+                           training_frame = h_train,
+                           nfolds = 5,               # Cross-Validation
+                           max_runtime_secs = 30,   # Max time
+                           max_models = 100,         # Max no. of models
+                           stopping_metric = "RMSE", # Metric to optimize
+                           project_name = "my_automl",
+                           exclude_algos = NULL,     # If you want to exclude any algo 
+                           seed = n_seed)
+
+
+model_automl@leaderboard 
+
+model_automl@leader
+
+h2o.performance(model_automl@leader, newdata = h_test)
+
+new <- NULL
+new$pred <- as.vector(h2o.predict(model_automl@leader, newdata = h_test))
+new$actual <- as_data_frame(h_test)$score
+
+as_data_frame(new) %>% head(n=20)
+
+# Make explanations -------------------------------------------------------
+
+explainer = lime(x = as.data.frame(h_train[, 1:50]),model = model_automl@leader)
+
+# Extract one sample (change `1` to any row you want)
+d_samp = as.data.frame(h_test[1, 1:50])
+# Assign a specifc row name (for better visualization)
+row.names(d_samp) = "Sample 1" 
+# Create explanations
+explanations = lime::explain(x = d_samp,
+                             explainer = explainer,
+                             n_permutations = 5000,
+                             feature_select = "auto",
+                             n_features = 13) # Look top x features
+
+lime::plot_features(explanations, ncol = 1)
   
+
+
+
 
 # TODO: 
-# Modelling, Score prediction based on text
 # Sentiment analysis
 
