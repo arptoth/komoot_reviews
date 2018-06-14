@@ -6,6 +6,7 @@ library(caret)
 library(glmnet)
 library(h2o)
 library(lime)
+library(jsonlite)
 
 
 # Data import and cleaning ------------------------------------------------
@@ -215,10 +216,10 @@ as_data_frame(new) %>% head(n=20)
 
 # Make explanations -------------------------------------------------------
 
-explainer = lime(x = as.data.frame(h_train[, 1:50]),model = model_automl@leader)
+explainer = lime(x = as.data.frame(h_train[, 1:95]),model = model_automl@leader)
 
 # Extract one sample (change `1` to any row you want)
-d_samp = as.data.frame(h_test[1, 1:50])
+d_samp = as.data.frame(h_test[10, 1:95])
 # Assign a specifc row name (for better visualization)
 row.names(d_samp) = "Sample 1" 
 # Create explanations
@@ -233,7 +234,72 @@ lime::plot_features(explanations, ncol = 1)
 
 
 
+# Sentimanet analysis with nrc lexicon -------------------------------------
 
-# TODO: 
-# Sentiment analysis
+
+nrc <- get_sentiments("nrc")
+sentiments <- word_data %>% inner_join(nrc) %>% left_join(y=reviews[,c("userName", "score")])
+
+# What kind of sentiments have the 5 star ratings?
+sentiments %>% filter(score==5) %>% group_by(sentiment) %>% count(sentiment, sort = TRUE)
+
+
+# What kind of sentiments have the 1 star ratings?
+sentiments %>% filter(score==1) %>% group_by(sentiment) %>% count(sentiment, sort = TRUE)
+
+# Most frequent words which are related to sentiment positive
+sentiments %>% filter(sentiment=="positive") %>% group_by(word) %>% summarise(Count=n())
+
+
+# Which words are relevant with specific sentiments
+sentiments %>%
+  # Count by word and sentiment
+  count(word, sentiment) %>%
+  # Group by sentiment
+  group_by(sentiment) %>%
+  # Take the top 10 words for each sentiment
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  # Set up the plot with aes()
+  ggplot(aes(word, n, fill=sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ sentiment, scales = "free") +
+  coord_flip()
+
+
+
+
+
+# Sentiment Analysis with bing lexicon ------------------------------------
+
+word_counts <- word_data %>%
+  # Implement sentiment analysis using the "bing" lexicon
+  inner_join(get_sentiments("bing")) %>%
+  # Count by word and sentiment
+  count(word, sentiment)
+
+top_words <- word_counts %>%
+  # Group by sentiment
+  group_by(sentiment) %>%
+  # Take the top 10 for each sentiment
+  top_n(10) %>%
+  ungroup() %>%
+  # Make word a factor in order of n
+  mutate(word = reorder(word, n))
+
+# Use aes() to put words on the x-axis and n on the y-axis
+ggplot(top_words, aes(word, n, fill = sentiment)) +
+  # Make a bar chart with geom_col()
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free") +  
+  coord_flip()
+
+
+?grep
+reviews %>% select(userName, text, score) %>% filter(score==5)
+
+
+
+
 
