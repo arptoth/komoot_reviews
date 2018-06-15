@@ -3,8 +3,8 @@ title: "Why does people like Komoot in USA"
 author: "Text Analysis based on 157 user reviews in US App Store. Árpád Tóth"
 output: 
   html_document: 
-    highlight: pygments
-    theme: spacelab
+    highlight: zenburn
+    theme: yeti
     df_print: paged
     code_folding: hide
 ---
@@ -79,7 +79,7 @@ reviews
 
 ## Let' explore the data
 
-What is the average rating in USA?
+### What is the average rating in USA?
 
 
 ```{r}
@@ -88,13 +88,34 @@ mean(reviews$score)
 
 ```
 
-
+### Distributions of ratings
 ```{r, message=FALSE}
 # Distributions of ratings
 reviews %>%  ggplot(aes(score)) + geom_bar() + theme_minimal()
+```
 
-# Number of reviews grouped by version
+
+### Number of reviews grouped by version
+
+```{r, message=FALSE}
 version_counts <- reviews %>% select(version) %>% group_by(version) %>% summarise(Count=n()) %>% arrange(desc(Count))
 version_counts
 ```
+
+
+### Top 10 reviewed versions
+
+
+```{r}
+version_counts %>% 
+  head() %>% 
+  ggplot(aes(x=version, y=Count)) + 
+  geom_bar(stat = "identity") +
+  theme_minimal()
+```
+
+
+### Which version is the best?
+
+
 
