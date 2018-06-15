@@ -1,0 +1,100 @@
+---
+title: "Why does people like Komoot in USA"
+author: "Text Analysis based on 157 user reviews in US App Store. Árpád Tóth"
+output: 
+  html_document: 
+    highlight: pygments
+    theme: spacelab
+    df_print: paged
+    code_folding: hide
+---
+
+
+![](http://cdn.shopify.com/s/files/1/0306/9401/t/2/assets/logo.png?91405913226758837) 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+ This report is a part of my job application for Data Analyst position at Komoot. 
+ Job desscription is here: <http://https://www.komoot.com/jobs/data-analyst>). This is report is the "Doing something creative with komoot" part.
+ 
+ 
+## What I did
+
+ 1. I scraped 157 app reviews from US App Store (by a simple node.js script)
+ 2. I did some exploratory data analysis
+ 3. I created a basic prediction for rating based on review texts
+ 4. I did sentiment analysis. What feelings and emotions are related with a review?
+ 5. Make recommendations how to improve user satisfaction in US
+ 
+ 
+## Actionable insights
+
+Based on text analysis I found the following information:
+
+ 1. People generally like Komoot app. The average rating is 4.2 in US. However, comparing the review numbers in Germany the penetration in other counties could be improved
+ 2. Most of the dissatisfaction are related to battery usage and crashes.
+ 3. The most unsatisfied veriosn is the !!!!
+ 4. ...
+
+
+```{r importing, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(tidytext)
+library(wordcloud)
+library(caret)
+library(glmnet)
+library(h2o)
+library(lime)
+library(jsonlite)
+```
+
+```{r}
+
+```
+
+
+
+## Data import
+
+ The node.js script scraped the reviews in JSON format. It adjusted manually firts because some key values were not claused by "". Afterthat I imported it by jsonlite library in R.
+
+```{r pressure}
+# Data import and cleaning ------------------------------------------------
+
+# Read US App Store reviews about Komoot
+reviews <- read_json("reviews.json")
+
+# Translate to tibble
+reviews <-  bind_rows(reviews)
+
+reviews
+```
+
+
+## Let' explore the data
+
+What is the average rating in USA?
+
+
+```{r}
+# Average ratings of Komoot App in the US Store based on these 157 reviews
+mean(reviews$score)
+
+```
+
+
+```{r, message=FALSE}
+# Distributions of ratings
+reviews %>%  ggplot(aes(score)) + geom_bar() + theme_minimal()
+
+# Number of reviews grouped by version
+version_counts <- reviews %>% select(version) %>% group_by(version) %>% summarise(Count=n()) %>% arrange(desc(Count))
+version_counts
+```
+

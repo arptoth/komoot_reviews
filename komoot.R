@@ -14,7 +14,7 @@ library(jsonlite)
 # Read US App Store reviews about Komoot
 reviews <- read_json("reviews.json")
 
-# Translate to Tibble data frame
+# Translate to tibble
 reviews <-  bind_rows(reviews)
 
 
@@ -296,7 +296,7 @@ ggplot(top_words, aes(word, n, fill = sentiment)) +
   coord_flip()
 
 
-?grep
+
 reviews %>% select(userName, text, score) %>% filter(score==5)
 
 
