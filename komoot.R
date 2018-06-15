@@ -64,16 +64,6 @@ word_data <- reviews %>%
   select(userName, text) %>% 
   tidytext::unnest_tokens(word, text, token = "words")
 
-head(word_data)
-
-sentences_count <- sentence_data %>% 
-  group_by(userName) %>% 
-  summarise(n_sentences = n_distinct(sentence))
-
-# Top 10 reviewers by sentence numbers
-sentences_count %>% arrange(desc(n_sentences))
-
-
 word_count <- word_data %>% 
   group_by(userName) %>% 
   summarise(n_words = n_distinct(word))
@@ -142,7 +132,7 @@ sparse_matrix$userName
 train_df <- left_join(x=sparse_matrix, y=reviews[,c("userName", "score")])
 
 
-train_df %>% select(userName, score, fun) %>% as_tibble()
+train_df %>% select(userName, score, fun, bike, app) %>% as_tibble()
 
 
 
@@ -176,6 +166,7 @@ h_test = h_split[[2]] # 25% for evaluation
 model_gbm = h2o.gbm(x = features,
                     y = target,
                     training_frame = h_train,
+                    balance_classes = TRUE,
                     model_id = "my_gbm",
                     seed = n_seed)
 print(model_gbm)

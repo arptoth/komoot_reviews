@@ -115,7 +115,148 @@ version_counts %>%
 ```
 
 
-### Which version is the best?
+### Average ratings by version
+
+
+```{r}
+reviews %>% select(version, score) %>% group_by(version) %>% summarise(Mean=mean(score), Count=n()) %>% arrange(desc(Count))
+```
+
+## Text Analysis
+
+### Who writes the longest review?
+
+```{r}
+word_data <- reviews %>% 
+  select(userName, text) %>% 
+  tidytext::unnest_tokens(word, text, token = "words")
+
+word_count <- word_data %>% 
+  group_by(userName) %>% 
+  summarise(n_words = n_distinct(word))
+
+# Top 10 reviewers by word count
+word_count %>% arrange(desc(n_words))
+```
+
+## What did he write?
+
+```{r}
+reviews %>% select(userName,text) %>% filter(userName == "Giovanni xmilkcratex") %>% select(text)
+```
+
+## What are the most frequent words?
+
+I excluded the stopwords like a, I, do not, etc.
+
+```{r}
+# most frequent words 
+word_data %>%
+  anti_join(get_stopwords()) %>%
+  count(word, sort = TRUE)
+```
+
+Let's create a wordcloud from that.
+
+```{r}
+# wordclouds
+word_data %>%
+  anti_join(get_stopwords()) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+
+```
+
+## Title anylsis
+
+Let's explore the titles too. Just the most frequent words, the words number by user and awordcloud.
+
+```{r}
+# Title Analysis
+title_words <- reviews %>% 
+  select(userName, title) %>% 
+  tidytext::unnest_tokens(word, title, token = "words")
+
+
+# Word counts in title by userName
+title_count <- title_words %>% 
+  group_by(userName) %>% 
+  summarise(Count = n()) %>% 
+  arrange(desc(Count))
+
+
+title_count
+
+# Most frequent words in titles
+title_words %>% 
+  anti_join(get_stopwords()) %>% 
+  count(word, sort=T) %>% 
+  with(wordcloud(word, n, max.words = 100))
+```
+
+
+## Can I predict ratings by review text itself?
+
+First I had to create a sparse matrix to represents word counts by users. Let's review how it looks like. This is an excerpt which includes only 3 words: fun, bike and app. The userName and score columns are from the original table.
+
+```{r}
+sparse_matrix <- reviews %>% 
+  select(userName, text) %>% 
+  tidytext::unnest_tokens(word, text, token = "words") %>% 
+  anti_join(get_stopwords()) %>%
+  count(userName, word, sort = TRUE) %>% 
+  cast_sparse(userName, word, n)
+
+sparse_matrix <- as.data.frame(as.matrix(sparse_matrix))
+
+sparse_matrix$userName <- rownames(sparse_matrix)
+
+train_df <- left_join(x=sparse_matrix, y=reviews[,c("userName", "score")])
+
+train_df %>% select(userName, score, fun, bike, app) %>% as_tibble()
+
+```
+
+
+Using H2O I tried first Gradient Boosting Machine because we approximate a 1-5 scale. It could be also a multiclass classification.
+
+```{r}
+# Set seed because of reproducability
+n_seed = 12345
+
+# Create target and feature list
+target = "score" # Result
+features = setdiff(colnames(train_df), c("target", "userName"))
+
+
+# Start a local H2O cluster (JVM)
+h2o.init()
+
+# H2O dataframe
+h_data <-  as.h2o(train_df)
+
+
+# Split Train/Test
+h_split = h2o.splitFrame(h_data, ratios = 0.75, seed = n_seed)
+h_train = h_split[[1]] # 75% for modelling
+h_test = h_split[[2]] # 25% for evaluation
+
+
+
+
+# Train a Default H2O GBM model
+model_gbm = h2o.gbm(x = features,
+                    y = target,
+                    training_frame = h_train,
+                    balance_classes = TRUE,
+                    model_id = "my_gbm",
+                    seed = n_seed)
+print(model_gbm)
+
+
+# Evaluate performance on test
+h2o.performance(model_gbm, newdata = h_test)
+```
 
 
 
