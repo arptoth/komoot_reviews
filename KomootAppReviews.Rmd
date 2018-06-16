@@ -39,15 +39,15 @@ Based on text analysis I found the following information:
 
  1. People generally like Komoot app. The average rating is 4.2 in the US. However, comparing the review numbers in Germany the penetration in other counties could be improved
  2. Most of the unsatisfaction is related to battery usage and crashes.
- 3. The most unrated versions are the 8.0 and 8.0.1, also 9.7.1 is less rated then the others in 9.x branch
+ 3. The most unrated versions are the 8.0 and 8.0.1, also 9.7.1 is less rated than the others in 9.x branch
  4. Mosty people love komoot because of the ability of planning and tracking features
 
 
 ## Actionable insights
 
-My overall recommendations based on this supersmall dataset:
+Overall recommendations based on this super small dataset:
 
- 1. Increase the penetration in other contries (like France, UK, Canada and the USA)
+ 1. Increase the penetration in other countries (like France, UK, Canada and the USA)
  2. Improve user experience 
  3. Improve battery usage
  4. Now iTunes supports response for feedbacks. Allocate resource to respond and evaluate latest feedbacks to turn them to action points
